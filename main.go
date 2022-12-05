@@ -1,124 +1,30 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 
 	"net/http"
 
-	"github.com/Peachvon/smarthome/data_model"
+	"github.com/Peachvon/smarthome/api"
 	"github.com/Peachvon/smarthome/ffun"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/static"
 
 	"github.com/gin-gonic/gin"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func addItem(c *gin.Context) {
-	//firstname := c.DefaultQuery("firstname", "Guest")
-	model := c.Query("model")
-	id := c.Query("id")
-	password := c.Query("password") // shortcut for c.Request.URL.Query().Get("lastname")
+type Book struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Author string `json:"author"`
+}
 
-	db, err := sql.Open("mysql", "Peach:Pe@ch123@tcp(35.240.190.171)/smarthome")
-
-	if err != nil {
-		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "error",
-		})
-		return
-
-	} else {
-		fmt.Println("Database Con")
-
-	}
-	defer db.Close()
-	var version string = ""
-	if model == "1" {
-		version = "SELECT * FROM `air` WHERE `id` =\"" + id + "\"AND `password` =\"" + password + "\""
-	} else if model == "2" {
-		version = "SELECT * FROM `door` WHERE `id` =\"" + id + "\"AND `password` =\"" + password + "\""
-	}
-
-	fmt.Println(version)
-	data, err := db.Query(version)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "error",
-		})
-		return
-	}
-	defer data.Close()
-	if model == "2" {
-		var deviceDoor []data_model.DeviceDoor
-		for data.Next() {
-			var device data_model.DeviceDoor
-			err := data.Scan(&device.Id, &device.Passwoed, &device.Model, &device.Topic, &device.Ip, &device.Camera)
-
-			if err != nil {
-
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"status": "error",
-				})
-				return
-
-			}
-			deviceDoor = append(deviceDoor, device)
-		}
-		if len(deviceDoor) == 1 {
-			fmt.Println(deviceDoor[0].Id)
-			c.JSON(http.StatusOK, gin.H{
-				"status":   "success",
-				"id":       deviceDoor[0].Id,
-				"password": deviceDoor[0].Passwoed,
-				"model":    deviceDoor[0].Model,
-				"topic":    deviceDoor[0].Topic,
-				"ip":       deviceDoor[0].Ip,
-				"camera":   deviceDoor[0].Camera,
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-			})
-			return
-
-		}
-	} else if model == "1" {
-		var deviceAir []data_model.DeviceAir
-		for data.Next() {
-			var device data_model.DeviceAir
-			err := data.Scan(&device.Id, &device.Passwoed, &device.Model, &device.Topic, &device.Ip)
-
-			if err != nil {
-
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"status": "error",
-				})
-				return
-
-			}
-			deviceAir = append(deviceAir, device)
-		}
-		if len(deviceAir) == 1 {
-			fmt.Println(deviceAir[0].Id)
-			c.JSON(http.StatusOK, gin.H{
-				"status":   "success",
-				"id":       deviceAir[0].Id,
-				"password": deviceAir[0].Passwoed,
-				"model":    deviceAir[0].Model,
-				"topic":    deviceAir[0].Topic,
-				"ip":       deviceAir[0].Ip,
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-			})
-			return
-
-		}
-	}
-
+var books = []Book{
+	{ID: "1", Title: "Harry Potter", Author: "J. K. Rowling"},
+	{ID: "2", Title: "The Lord of the Rings", Author: "J. R. R. Tolkien"},
+	{ID: "3", Title: "The Wizard of Oz", Author: "L. Frank Baum"},
 }
 
 func main() {
@@ -127,7 +33,33 @@ func main() {
 
 	fmt.Println(ffun.Asd())
 	fmt.Println(ffun.Add2(10, 101))
-	r.GET("/add_item", addItem)
+	r.Use(cors.Default())
+	r.Use(static.Serve("/", static.LocalFile("./static", false)))
+
+	r.GET("/api/add_item_tomobile", api.AddItemToMobile)
+	r.GET("/api/select_air_item", api.SelectAirItem)
+	r.GET("/api/select_door_item", api.SelectDoorItem)
+	r.POST("/api/add_air_item", api.AddAirItem)
+	r.POST("/api/add_door_item", api.AddDoorItem)
+	r.DELETE("/api/delete_door_item", api.DeleteDoorItem)
+	r.DELETE("/api/delete_air_item", api.DeleteAirItem)
+
+	r.POST("/books", func(c *gin.Context) {
+
+		var book Book
+		//fmt.Println(c.ShouldBindJSON(&book))
+		if err := c.ShouldBindJSON(&book); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		fmt.Printf("asd %+v \n", book)
+		books = append(books, book)
+
+		c.JSON(http.StatusCreated, books)
+	})
+
 	r.Run(":3001")
 	// listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 	// fmt.Println("When's Saturday?")
