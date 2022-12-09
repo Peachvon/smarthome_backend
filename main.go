@@ -34,7 +34,7 @@ func main() {
 	fmt.Println(ffun.Asd())
 	fmt.Println(ffun.Add2(10, 101))
 	r.Use(cors.Default())
-	r.Use(static.Serve("/", static.LocalFile("./static", false)))
+	r.Use(static.Serve("/", static.LocalFile("./page", false)))
 
 	r.GET("/api/add_item_tomobile", api.AddItemToMobile)
 	r.GET("/api/select_air_item", api.SelectAirItem)
